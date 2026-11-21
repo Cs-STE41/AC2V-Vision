@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#183b32">
+<title>AC2V Vision</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#18231f;background:#f3f6f4}
+*{box-sizing:border-box}body{margin:0}header{background:#183b32;color:white;padding:20px 18px}
+h1{font-size:1.45rem;margin:0 0 4px}header p{margin:0;color:#d9e8df;font-size:.92rem}
+main{max-width:720px;margin:auto;padding:16px;display:grid;gap:14px}
+.card{background:white;border:1px solid #dce5df;border-radius:16px;padding:16px;box-shadow:0 2px 8px #14251a0a}
+h2{font-size:1.05rem;margin:0 0 10px}.muted{color:#5d6b64;font-size:.9rem}
+button,input{font:inherit}button{border:0;border-radius:12px;padding:13px 16px;background:#176b4b;color:white;font-weight:650;width:100%;margin-top:8px}
+button.secondary{background:#e8efeb;color:#183b32}button:disabled{opacity:.45}
+video{width:100%;max-height:55vh;object-fit:cover;background:#101714;border-radius:12px;display:block}
+.status{padding:12px;border-radius:12px;background:#edf3ef;margin-top:10px;min-height:48px}
+.result{font-size:1.15rem;font-weight:750}.confidence{font-variant-numeric:tabular-nums;color:#526159}
+a.link{display:block;text-align:center;text-decoration:none;background:#176b4b;color:white;border-radius:12px;padding:14px;font-weight:700;margin-top:12px}
+label{display:block;font-weight:650;margin:10px 0 5px}input{width:100%;padding:11px;border:1px solid #cbd7cf;border-radius:10px}
+details summary{font-weight:700;cursor:pointer}small{display:block;line-height:1.45;color:#5d6b64;margin-top:8px}
+footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
+</style>
+</head>
+<body>
+<header><h1>AC2V Vision</h1><p>Reconnaissance des matériels et équipements pédagogiques</p></header>
+<main>
+<section class="card">
+<h2>1 · Démarrer la reconnaissance</h2>
+<p class="muted">Place un équipement dans le champ de la caméra. L'application cherche une correspondance dans ton catalogue personnalisé.</p>
+<video id="video" playsinline muted></video>
+<button id="start">Activer la caméra et reconnaître</button>
+<button id="stop" class="secondary" disabled>Arrêter la caméra</button>
+<div class="status" id="status" aria-live="polite">En attente du démarrage.</div>
+</section>
+<section class="card">
+<h2>2 · Résultat</h2>
+<div class="result" id="objectName">Aucun objet identifié</div>
+<div class="confidence" id="confidence">La reconnaissance apparaîtra ici.</div>
+<a id="openLink" class="link" href="#" target="_blank" rel="noopener" hidden>Ouvrir la ressource pédagogique</a>
+<p class="muted">L'ouverture se fait par un bouton de confirmation : cela évite que le navigateur bloque l'ouverture automatique d'un nouvel onglet.</p>
+</section>
+<section class="card">
+<details>
+<summary>Configuration (à faire une seule fois)</summary>
+<label for="modelUrl">Adresse du modèle Teachable Machine</label>
+<input id="modelUrl" placeholder="https://teachablemachine.withgoogle.com/models/IDENTIFIANT/">
+<small>Dans Teachable Machine : Projet Image → Entraîner → Exporter le modèle → Héberger le modèle en ligne. Copie l'adresse fournie ici.</small>
+<button id="loadModel" class="secondary">Charger / actualiser le modèle</button>
+<small>Les noms des classes du modèle doivent correspondre exactement aux clés du catalogue ci-dessous. Pour ajouter tes matériels et leurs liens, modifie le bloc CATALOGUE dans le fichier avec un éditeur de texte.</small>
+</details>
+</section>
+<section class="card">
+<h2>Conseils pour obtenir une bonne reconnaissance</h2>
+<ul class="muted">
+<li>Créer une classe par équipement, avec son nom précis.</li>
+<li>Ajouter au moins 30 à 50 photos par classe, sous plusieurs angles et distances.</li>
+<li>Ajouter une classe « Autre / inconnu » avec des images qui ne correspondent à aucun matériel du catalogue.</li>
+<li>Éviter les objets presque identiques au début ; tester chaque classe dans des conditions réelles.</li>
+<li>Ne pas utiliser cette reconnaissance comme contrôle de sécurité ou identification réglementaire.</li>
+</ul>
+</section>
+</main>
+<footer>Prototype de démonstration · AC2V Vision</footer>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+<script>
+/* CATALOGUE : remplace les exemples par les noms exacts des classes du modèle
+   et les adresses de tes fiches, PDF ou vidéos. */
+const CATALOGUE = {
+  "Pulvérisateur": {url:"https://exemple.fr/fiche-pulverisateur", description:"Fiche pédagogique du pulvérisateur"},
+  "Tracteur": {url:"https://exemple.fr/fiche-tracteur", description:"Fiche pédagogique du tracteur"},
+  "Extincteur": {url:"https://exemple.fr/consignes-extincteur", description:"Consignes d'utilisation de l'extincteur"},
+  "Autre - inconnu": {url:"", description:"Objet non répertorié"}
+};
+const video=document.getElementById('video');
+const statusBox=document.getElementById('status');
+const objectName=document.getElementById('objectName');
+const confidence=document.getElementById('confidence');
+const openLink=document.getElementById('openLink');
+const modelInput=document.getElementById('modelUrl');
+let model=null,stream=null,running=false,raf=null,lastLabel="",stableCount=0,lastShown="";
+const THRESHOLD=0.85;
+function say(t){statusBox.textContent=t}
+async function loadModel(){
+  const url=modelInput.value.trim();
+  if(!url){say("Ajoute d'abord l'adresse du modèle Teachable Machine.");return}
+  try{
+    say("Chargement du modèle…");
+    const base=url.endsWith("/")?url:url+"/";
+    model=await tmImage.load(base+"model.json",base+"metadata.json");
+    say("Modèle chargé. Tu peux démarrer la caméra.");
+  }catch(e){console.error(e);say("Impossible de charger le modèle. Vérifie l'adresse du modèle et la connexion Internet.");}
+}
+document.getElementById('loadModel').onclick=loadModel;
+async function start(){
+  if(!model){say("Charge d'abord ton modèle dans Configuration.");return}
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+    video.srcObject=stream;await video.play();running=true;
+    document.getElementById('start').disabled=true;document.getElementById('stop').disabled=false;
+    say("Caméra active : présente un équipement devant l'objectif.");
+    loop();
+  }catch(e){console.error(e);say("Accès caméra refusé ou indisponible. Autorise la caméra dans Chrome et vérifie que la page est ouverte en HTTPS.");}
+}
+async function loop(){
+  if(!running)return;
+  try{
+    const predictions=await model.predict(video);
+    predictions.sort((a,b)=>b.probability-a.probability);
+    const best=predictions[0];
+    const pct=Math.round(best.probability*100);
+    confidence.textContent=best.className+" · confiance estimée : "+pct+" %";
+    if(best.probability>=THRESHOLD && CATALOGUE[best.className] && CATALOGUE[best.className].url){
+      if(best.className===lastLabel)stableCount++;else{lastLabel=best.className;stableCount=1}
+      if(stableCount>=3){
+        const item=CATALOGUE[best.className];
+        objectName.textContent=best.className;
+        openLink.href=item.url;openLink.hidden=false;
+        openLink.textContent="Ouvrir : "+(item.description||best.className);
+        say("Équipement reconnu. Vérifie le nom puis appuie sur le bouton pour ouvrir la ressource.");
+        lastShown=best.className;
+      }else say("Correspondance possible : confirmation en cours…");
+    }else{
+      lastLabel="";stableCount=0;
+      if(best.className==="Autre - inconnu" || best.probability<THRESHOLD){
+        objectName.textContent="Objet non confirmé";openLink.hidden=true;
+        say("Je ne reconnais pas encore cet équipement avec suffisamment de confiance.");
+      }else{
+        objectName.textContent=best.className;openLink.hidden=true;
+        say("Classe reconnue, mais aucun lien n'est configuré pour cet objet.");
+      }
+    }
+  }catch(e){console.error(e);say("Erreur pendant la reconnaissance.");}
+  if(running)raf=setTimeout(loop,450);
+}
+function stop(){
+  running=false;if(raf)clearTimeout(raf);
+  if(stream)stream.getTracks().forEach(t=>t.stop());
+  stream=null;video.srcObject=null;
+  document.getElementById('start').disabled=false;document.getElementById('stop').disabled=true;
+  say("Caméra arrêtée.");
+}
+document.getElementById('start').onclick=start;
+document.getElementById('stop').onclick=stop;
+</script>
+</body>
+</html>
