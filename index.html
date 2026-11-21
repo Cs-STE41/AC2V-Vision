@@ -56,7 +56,7 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 <ul class="muted">
 <li>Créer une classe par équipement, avec son nom précis.</li>
 <li>Ajouter au moins 30 à 50 photos par classe, sous plusieurs angles et distances.</li>
-<li>Ajouter une classe « Autre / inconnu » avec des images qui ne correspondent à aucun matériel du catalogue.</li>
+<li>Ajouter une classe « Autre - inconnu » (orthographe exacte) avec des images qui ne correspondent à aucun matériel du catalogue.</li>
 <li>Éviter les objets presque identiques au début ; tester chaque classe dans des conditions réelles.</li>
 <li>Ne pas utiliser cette reconnaissance comme contrôle de sécurité ou identification réglementaire.</li>
 </ul>
@@ -74,6 +74,10 @@ const CATALOGUE = {
   "Extincteur": {url:"https://exemple.fr/consignes-extincteur", description:"Consignes d'utilisation de l'extincteur"},
   "Autre - inconnu": {url:"", description:"Objet non répertorié"}
 };
+/* Adresse du modèle Teachable Machine hébergé
+   (ex. https://teachablemachine.withgoogle.com/models/IDENTIFIANT/).
+   Préremplir ici, ou passer ?model=... dans l'URL de la page. */
+const MODEL_URL="";
 const video=document.getElementById('video');
 const statusBox=document.getElementById('status');
 const objectName=document.getElementById('objectName');
@@ -94,6 +98,11 @@ async function loadModel(){
   }catch(e){console.error(e);say("Impossible de charger le modèle. Vérifie l'adresse du modèle et la connexion Internet.");}
 }
 document.getElementById('loadModel').onclick=loadModel;
+(function initModelUrl(){
+  const q=new URLSearchParams(location.search).get("model");
+  const url=(q||MODEL_URL||"").trim();
+  if(url){modelInput.value=url;loadModel();}
+})();
 async function start(){
   if(!model){say("Charge d'abord ton modèle dans Configuration.");return}
   try{
@@ -112,7 +121,7 @@ async function loop(){
     const best=predictions[0];
     const pct=Math.round(best.probability*100);
     confidence.textContent=best.className+" · confiance estimée : "+pct+" %";
-    if(best.probability>=THRESHOLD && CATALOGUE[best.className] && CATALOGUE[best.className].url){
+    if(best.className!=="Autre - inconnu" && best.probability>=THRESHOLD && CATALOGUE[best.className] && CATALOGUE[best.className].url){
       if(best.className===lastLabel)stableCount++;else{lastLabel=best.className;stableCount=1}
       if(stableCount>=3){
         const item=CATALOGUE[best.className];
