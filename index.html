@@ -45,8 +45,8 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 <details>
 <summary>Configuration (à faire une seule fois)</summary>
 <label for="modelUrl">Adresse du modèle Teachable Machine</label>
-<input id="modelUrl" placeholder="https://teachablemachine.withgoogle.com/models/IDENTIFIANT/">
-<small>Dans Teachable Machine : Projet Image → Entraîner → Exporter le modèle → Héberger le modèle en ligne. Copie l'adresse fournie ici.</small>
+<input id="modelUrl" placeholder="model/ ou https://teachablemachine.withgoogle.com/models/IDENTIFIANT/">
+<small>Par défaut, la page charge le modèle inclus dans le dossier model/. Tu peux aussi coller une adresse Teachable Machine (Projet Image → Exporter → Héberger le modèle en ligne).</small>
 <button id="loadModel" class="secondary">Charger / actualiser le modèle</button>
 <small>Les noms des classes du modèle doivent correspondre exactement aux clés du catalogue ci-dessous. Pour ajouter tes matériels et leurs liens, modifie le bloc CATALOGUE dans le fichier avec un éditeur de texte.</small>
 </details>
@@ -59,6 +59,7 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 <li>Ajouter une classe « Autre - inconnu » (orthographe exacte) avec des images qui ne correspondent à aucun matériel du catalogue.</li>
 <li>Éviter les objets presque identiques au début ; tester chaque classe dans des conditions réelles.</li>
 <li>Ne pas utiliser cette reconnaissance comme contrôle de sécurité ou identification réglementaire.</li>
+<li>Le modèle actuel a été entraîné à partir d’<strong>une seule image de logo</strong> par marque (deux pour SDF : iMonitor et le terminal). La reconnaissance sur un vrai tracteur, selon l’angle, la lumière ou l’usure, sera moins fiable. De vraies photos prises sur le matériel amélioreront nettement le modèle.</li>
 </ul>
 </section>
 </main>
@@ -69,15 +70,19 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 /* CATALOGUE : remplace les exemples par les noms exacts des classes du modèle
    et les adresses de tes fiches, PDF ou vidéos. */
 const CATALOGUE = {
-  "Pulvérisateur": {url:"https://exemple.fr/fiche-pulverisateur", description:"Fiche pédagogique du pulvérisateur"},
-  "Tracteur": {url:"https://exemple.fr/fiche-tracteur", description:"Fiche pédagogique du tracteur"},
-  "Extincteur": {url:"https://exemple.fr/consignes-extincteur", description:"Consignes d'utilisation de l'extincteur"},
+  "Fendt": {url:"fiches/fendt.html", description:"Vidéos de guidage Fendt"},
+  "SDF": {url:"fiches/sdf.html", description:"Vidéos de guidage SDF / iMonitor"},
+  "John Deere": {url:"fiches/john-deere.html", description:"Vidéos de guidage John Deere"},
+  "Massey Ferguson": {url:"fiches/massey-ferguson.html", description:"Vidéos de guidage Massey Ferguson"},
+  "Valtra": {url:"fiches/valtra.html", description:"Vidéos de guidage Valtra"},
+  "Case IH": {url:"fiches/case-ih.html", description:"Vidéos de guidage Case IH"},
+  "Claas": {url:"fiches/claas.html", description:"Vidéos de guidage Claas"},
+  "New Holland": {url:"fiches/new-holland.html", description:"Vidéos de guidage New Holland"},
   "Autre - inconnu": {url:"", description:"Objet non répertorié"}
 };
-/* Adresse du modèle Teachable Machine hébergé
-   (ex. https://teachablemachine.withgoogle.com/models/IDENTIFIANT/).
-   Préremplir ici, ou passer ?model=... dans l'URL de la page. */
-const MODEL_URL="";
+/* Dossier du modèle (model.json + metadata.json + weights.bin).
+   Chemin relatif, ou URL Teachable Machine, ou ?model=... dans l'URL de la page. */
+const MODEL_URL="model/";
 const video=document.getElementById('video');
 const statusBox=document.getElementById('status');
 const objectName=document.getElementById('objectName');
