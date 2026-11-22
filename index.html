@@ -34,11 +34,11 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 </style>
 </head>
 <body>
-<header><h1>AC2V Vision</h1><p>Reconnaissance des matériels et équipements pédagogiques</p></header>
+<header><h1>AC2V Vision</h1><p>Reconnaissance des marques de matériel agricole pour accéder aux fiches de formation</p></header>
 <main>
 <section class="card">
 <h2>1 · Démarrer la reconnaissance</h2>
-<p class="muted">Place un équipement dans le champ de la caméra. L'application cherche une correspondance dans ton catalogue personnalisé.</p>
+<p class="muted">Présente le logo d'une marque (tracteur, console ou terminal) devant la caméra. L'application reconnaît la marque, te demande de confirmer, puis ouvre sa fiche de formation.</p>
 <video id="video" playsinline muted></video>
 <button id="start">Activer la caméra et reconnaître</button>
 <button id="stop" class="secondary" disabled>Arrêter la caméra</button>
@@ -46,8 +46,8 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 </section>
 <section class="card" id="resultCard">
 <h2>2 · Résultat</h2>
-<div class="result" id="objectName">Aucun objet identifié</div>
-<div class="confidence" id="confidence">La reconnaissance apparaîtra ici.</div>
+<div class="result" id="objectName">Aucune marque identifiée</div>
+<div class="confidence" id="confidence">La marque reconnue apparaîtra ici.</div>
 <div id="confirmPanel" hidden>
 <div class="brand-badge" id="brandBadge">
 <span class="brand-swatch" id="brandSwatch" aria-hidden="true"></span>
@@ -65,17 +65,12 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 </div>
 <button type="button" id="btnRescan" class="secondary">Relancer le scan</button>
 </div>
-<p class="muted" id="openHint">Après une détection, la page te demande de confirmer le logo avant d'ouvrir la fiche.</p>
+<p class="muted" id="openHint">Après une détection, l'application te demande de confirmer le logo avant d'ouvrir la fiche.</p>
 </section>
 <section class="card">
-<details>
-<summary>Configuration (à faire une seule fois)</summary>
-<label for="modelUrl">Adresse du modèle Teachable Machine</label>
-<input id="modelUrl" placeholder="model/ ou https://teachablemachine.withgoogle.com/models/IDENTIFIANT/">
-<small>Par défaut, la page charge le modèle inclus dans le dossier model/. Tu peux aussi coller une adresse Teachable Machine (Projet Image → Exporter → Héberger le modèle en ligne).</small>
-<button id="loadModel" class="secondary">Charger / actualiser le modèle</button>
-<small>Les noms des classes du modèle doivent correspondre exactement aux clés du catalogue ci-dessous. Pour ajouter tes matériels et leurs liens, modifie le bloc CATALOGUE dans le fichier avec un éditeur de texte.</small>
-</details>
+<h2>Besoin d'aide ?</h2>
+<p class="muted">Un guide pas à pas explique comment utiliser l'application, de l'activation de la caméra à l'ouverture de la fiche.</p>
+<a class="link" href="tutoriel.html">Tutoriel : comment utiliser l'application</a>
 </section>
 <section class="card">
 <h2>Conseils pour obtenir une bonne reconnaissance</h2>
@@ -89,22 +84,22 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 </ul>
 </section>
 </main>
-<footer>Prototype de démonstration · AC2V Vision</footer>
+<footer>AC2V Vision · fiches de formation au guidage</footer>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 <script>
-/* CATALOGUE : remplace les exemples par les noms exacts des classes du modèle
-   et les adresses de tes fiches, PDF ou vidéos. */
+/* CATALOGUE : les clés doivent correspondre exactement aux noms des classes du modèle.
+   Chaque entrée pointe vers la fiche de formation de la marque. */
 const CATALOGUE = {
-  "Fendt": {url:"fiches/fendt.html", description:"Vidéos de guidage Fendt"},
-  "SDF": {url:"fiches/sdf.html", description:"Vidéos de guidage SDF / iMonitor"},
-  "John Deere": {url:"fiches/john-deere.html", description:"Vidéos de guidage John Deere"},
-  "Massey Ferguson": {url:"fiches/massey-ferguson.html", description:"Vidéos de guidage Massey Ferguson"},
-  "Valtra": {url:"fiches/valtra.html", description:"Vidéos de guidage Valtra"},
-  "Case IH": {url:"fiches/case-ih.html", description:"Vidéos de guidage Case IH"},
-  "Claas": {url:"fiches/claas.html", description:"Vidéos de guidage Claas"},
-  "New Holland": {url:"fiches/new-holland.html", description:"Vidéos de guidage New Holland"},
-  "Autre - inconnu": {url:"", description:"Objet non répertorié"}
+  "Fendt": {url:"fiches/fendt.html", description:"Fiche de formation et vidéos de guidage Fendt"},
+  "SDF": {url:"fiches/sdf.html", description:"Fiche de formation et vidéos de guidage SDF / iMonitor"},
+  "John Deere": {url:"fiches/john-deere.html", description:"Livret de formation et vidéos de guidage John Deere"},
+  "Massey Ferguson": {url:"fiches/massey-ferguson.html", description:"Fiche de formation et vidéos de guidage Massey Ferguson"},
+  "Valtra": {url:"fiches/valtra.html", description:"Fiche de formation et vidéos de guidage Valtra"},
+  "Case IH": {url:"fiches/case-ih.html", description:"Fiche de formation et vidéos de guidage Case IH"},
+  "Claas": {url:"fiches/claas.html", description:"Fiche de formation et vidéos de guidage Claas"},
+  "New Holland": {url:"fiches/new-holland.html", description:"Fiche de formation New Holland (vidéos à venir)"},
+  "Autre - inconnu": {url:"", description:"Marque non répertoriée"}
 };
 /* Dossier du modèle (model.json + metadata.json + weights.bin).
    Chemin relatif, ou URL Teachable Machine, ou ?model=... dans l'URL de la page. */
@@ -113,7 +108,6 @@ const video=document.getElementById('video');
 const statusBox=document.getElementById('status');
 const objectName=document.getElementById('objectName');
 const confidence=document.getElementById('confidence');
-const modelInput=document.getElementById('modelUrl');
 const confirmPanel=document.getElementById('confirmPanel');
 const pickPanel=document.getElementById('pickPanel');
 const brandSelect=document.getElementById('brandSelect');
@@ -146,7 +140,7 @@ function fillBrandSelect(){
 fillBrandSelect();
 function openFiche(className){
   const item=CATALOGUE[className];
-  if(!item||!item.url){say("Aucune fiche n'est configurée pour cette marque.");return}
+  if(!item||!item.url){say("Aucune fiche n'est disponible pour cette marque.");return}
   window.open(item.url,"_blank","noopener");
 }
 function askConfirmation(className){
@@ -171,12 +165,12 @@ function resumeScan(){
   pickPanel.hidden=true;
   pendingBrand="";
   lastLabel="";stableCount=0;lastShown="";
-  objectName.textContent="Aucun objet identifié";
+  objectName.textContent="Aucune marque identifiée";
   document.body.classList.remove("confirming");
   paused=false;
   if(stream){
     running=true;
-    say("Scan relancé : présente un équipement devant l'objectif.");
+    say("Scan relancé : présente un logo devant l'objectif.");
     loop();
   }else{
     running=false;
@@ -199,24 +193,21 @@ document.getElementById('btnOpenChosen').onclick=function(){
 };
 document.getElementById('btnRescan').onclick=resumeScan;
 function say(t){statusBox.textContent=t}
-async function loadModel(){
-  const url=modelInput.value.trim();
-  if(!url){say("Ajoute d'abord l'adresse du modèle Teachable Machine.");return}
+async function loadModel(url){
+  if(!url){say("Aucun modèle à charger.");return}
   try{
     say("Chargement du modèle…");
-    const base=url.endsWith("/")?url:url+"/";
-    model=await tmImage.load(base+"model.json",base+"metadata.json");
-    say("Modèle chargé. Tu peux démarrer la caméra.");
-  }catch(e){console.error(e);say("Impossible de charger le modèle. Vérifie l'adresse du modèle et la connexion Internet.");}
+    model=await tmImage.load(url+"model.json",url+"metadata.json");
+    say("Prêt. Tu peux activer la caméra.");
+  }catch(e){console.error(e);say("Impossible de charger le modèle. Vérifie la connexion Internet puis recharge la page.");}
 }
-document.getElementById('loadModel').onclick=loadModel;
 (function initModelUrl(){
   const q=new URLSearchParams(location.search).get("model");
   const url=(q||MODEL_URL||"").trim();
-  if(url){modelInput.value=url;loadModel();}
+  if(url)loadModel(url.endsWith("/")?url:url+"/");
 })();
 async function start(){
-  if(!model){say("Charge d'abord ton modèle dans Configuration.");return}
+  if(!model){say("Le modèle est en cours de chargement. Patiente un instant puis réessaie.");return}
   try{
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
     video.srcObject=stream;await video.play();running=true;
@@ -224,7 +215,7 @@ async function start(){
     paused=false;lastLabel="";stableCount=0;lastShown="";pendingBrand="";
     confirmPanel.hidden=true;pickPanel.hidden=true;
     document.body.classList.remove("confirming");
-    say("Caméra active : présente un équipement devant l'objectif.");
+    say("Caméra active : présente un logo devant l'objectif.");
     loop();
   }catch(e){console.error(e);say("Accès caméra refusé ou indisponible. Autorise la caméra dans Chrome et vérifie que la page est ouverte en HTTPS.");}
 }
@@ -245,11 +236,11 @@ async function loop(){
     }else{
       lastLabel="";stableCount=0;
       if(best.className==="Autre - inconnu" || best.probability<THRESHOLD){
-        objectName.textContent="Objet non confirmé";
-        say("Je ne reconnais pas encore cet équipement avec suffisamment de confiance.");
+        objectName.textContent="Marque non confirmée";
+        say("Je ne reconnais pas encore ce logo avec suffisamment de confiance.");
       }else{
         objectName.textContent=best.className;
-        say("Classe reconnue, mais aucun lien n'est configuré pour cet objet.");
+        say("Marque reconnue, mais aucune fiche n'est disponible pour le moment.");
       }
     }
   }catch(e){console.error(e);say("Erreur pendant la reconnaissance.");}

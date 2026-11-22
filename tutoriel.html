@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#183b32">
+<title>Tutoriel — AC2V Vision</title>
+<link rel="stylesheet" href="fiches/style.css">
+<style>
+ol.steps{counter-reset:step}
+ol.steps li{counter-increment:step;position:relative;padding:4px 0 14px 46px;line-height:1.5}
+ol.steps li::before{content:counter(step);position:absolute;left:0;top:2px;width:32px;height:32px;border-radius:50%;background:#176b4b;color:white;font-weight:700;display:flex;align-items:center;justify-content:center}
+ol.steps li strong{display:block}
+ul.tips{margin:0;padding-left:20px;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+<h1>Tutoriel</h1>
+<p>Comment utiliser l’application AC2V Vision</p>
+</header>
+<main>
+<section class="card">
+<h2>À quoi sert l’application ?</h2>
+<p class="muted">AC2V Vision reconnaît la marque d’un tracteur, d’une console ou d’un terminal grâce à son logo, puis ouvre la fiche de formation correspondante : livret de prise en main et vidéos de guidage.</p>
+</section>
+<section class="card">
+<h2>Pas à pas</h2>
+<ol class="steps">
+<li><strong>Ouvre l’application</strong>Utilise Chrome, avec une connexion Internet. La page doit être ouverte en HTTPS pour que la caméra fonctionne.</li>
+<li><strong>Active la caméra</strong>Appuie sur « Activer la caméra et reconnaître », puis autorise l’accès à la caméra si le navigateur le demande.</li>
+<li><strong>Présente le logo</strong>Place le logo de la marque (sur le capot, la console ou le terminal) bien en face de l’objectif, à 20–50 cm, avec une bonne lumière et sans reflet.</li>
+<li><strong>Attends la détection</strong>La reconnaissance se fait toute seule. Quand la marque est identifiée avec assez de certitude, la détection se met en pause et la marque s’affiche avec sa couleur.</li>
+<li><strong>Confirme le logo</strong>Appuie sur « Oui » si c’est le bon logo : la fiche s’ouvre dans un nouvel onglet. Appuie sur « Non » si ce n’est pas le bon.</li>
+<li><strong>Corrige si besoin</strong>Après « Non », choisis la bonne marque dans la liste, puis appuie sur « Ouvrir la fiche de cette marque ».</li>
+<li><strong>Consulte la fiche</strong>Ouvre le livret PDF ou une vidéo. Le bouton « Retour à la reconnaissance » ramène à la caméra.</li>
+<li><strong>Relance ou arrête</strong>« Relancer le scan » permet d’identifier une autre marque. « Arrêter la caméra » coupe la caméra quand tu as fini.</li>
+</ol>
+</section>
+<section class="card">
+<h2>Si ça ne marche pas</h2>
+<ul class="tips muted">
+<li>« Je ne reconnais pas encore ce logo » : rapproche-toi, évite les reflets, tiens le logo bien droit et immobile.</li>
+<li>La caméra ne démarre pas : vérifie que la caméra est autorisée dans Chrome et que l’adresse commence par https://.</li>
+<li>Logo introuvable ou mal reconnu : utilise « Non » puis choisis la marque dans la liste.</li>
+<li>L’application sert à retrouver des fiches de formation. Elle ne remplace pas une vérification d’identification ou de sécurité.</li>
+</ul>
+</section>
+<p><a class="back" href="index.html">Retour à la reconnaissance</a></p>
+</main>
+<footer>AC2V Vision · tutoriel</footer>
+</body>
+</html>
