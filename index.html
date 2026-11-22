@@ -12,9 +12,19 @@ h1{font-size:1.45rem;margin:0 0 4px}header p{margin:0;color:#d9e8df;font-size:.9
 main{max-width:720px;margin:auto;padding:16px;display:grid;gap:14px}
 .card{background:white;border:1px solid #dce5df;border-radius:16px;padding:16px;box-shadow:0 2px 8px #14251a0a}
 h2{font-size:1.05rem;margin:0 0 10px}.muted{color:#5d6b64;font-size:.9rem}
-button,input{font:inherit}button{border:0;border-radius:12px;padding:13px 16px;background:#176b4b;color:white;font-weight:650;width:100%;margin-top:8px}
+button,input,select{font:inherit}button{border:0;border-radius:12px;padding:13px 16px;background:#176b4b;color:white;font-weight:650;width:100%;margin-top:8px}
 button.secondary{background:#e8efeb;color:#183b32}button:disabled{opacity:.45}
+button.no{background:#8e2f2f}button.no:focus,button.no:hover{background:#732626}
 video{width:100%;max-height:55vh;object-fit:cover;background:#101714;border-radius:12px;display:block}
+body.confirming video{max-height:22vh}
+.question{font-size:1.2rem;font-weight:750;margin:14px 0 0}
+.brand-badge{display:flex;align-items:center;gap:12px;margin-top:12px;padding:14px 16px;border-radius:14px;background:#edf3ef;border-left:10px solid #176b4b}
+.brand-swatch{width:32px;height:32px;border-radius:8px;flex:0 0 auto;box-shadow:inset 0 0 0 1px #00000022}
+.brand-badge .brand-label{font-size:1.3rem;font-weight:750;line-height:1.2}
+.yesno{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.yesno button{margin-top:0;padding:18px 16px;font-size:1.2rem;min-height:56px}
+#pickPanel{margin-top:8px}
+select{width:100%;padding:14px 12px;border:1px solid #cbd7cf;border-radius:12px;background:white;min-height:52px}
 .status{padding:12px;border-radius:12px;background:#edf3ef;margin-top:10px;min-height:48px}
 .result{font-size:1.15rem;font-weight:750}.confidence{font-variant-numeric:tabular-nums;color:#526159}
 a.link{display:block;text-align:center;text-decoration:none;background:#176b4b;color:white;border-radius:12px;padding:14px;font-weight:700;margin-top:12px}
@@ -34,12 +44,28 @@ footer{text-align:center;color:#66756d;font-size:.8rem;padding:4px 16px 24px}
 <button id="stop" class="secondary" disabled>Arrêter la caméra</button>
 <div class="status" id="status" aria-live="polite">En attente du démarrage.</div>
 </section>
-<section class="card">
+<section class="card" id="resultCard">
 <h2>2 · Résultat</h2>
 <div class="result" id="objectName">Aucun objet identifié</div>
 <div class="confidence" id="confidence">La reconnaissance apparaîtra ici.</div>
-<a id="openLink" class="link" href="#" target="_blank" rel="noopener" hidden>Ouvrir la ressource pédagogique</a>
-<p class="muted">L'ouverture se fait par un bouton de confirmation : cela évite que le navigateur bloque l'ouverture automatique d'un nouvel onglet.</p>
+<div id="confirmPanel" hidden>
+<div class="brand-badge" id="brandBadge">
+<span class="brand-swatch" id="brandSwatch" aria-hidden="true"></span>
+<span class="brand-label" id="detectedName"></span>
+</div>
+<p class="question">Est-ce que c'est le bon logo ?</p>
+<div class="yesno">
+<button type="button" id="btnYes">Oui</button>
+<button type="button" id="btnNo" class="no">Non</button>
+</div>
+<div id="pickPanel" hidden>
+<label for="brandSelect">Quelle est la bonne marque ?</label>
+<select id="brandSelect"></select>
+<button type="button" id="btnOpenChosen">Ouvrir la fiche de cette marque</button>
+</div>
+<button type="button" id="btnRescan" class="secondary">Relancer le scan</button>
+</div>
+<p class="muted" id="openHint">Après une détection, la page te demande de confirmer le logo avant d'ouvrir la fiche.</p>
 </section>
 <section class="card">
 <details>
@@ -87,10 +113,91 @@ const video=document.getElementById('video');
 const statusBox=document.getElementById('status');
 const objectName=document.getElementById('objectName');
 const confidence=document.getElementById('confidence');
-const openLink=document.getElementById('openLink');
 const modelInput=document.getElementById('modelUrl');
-let model=null,stream=null,running=false,raf=null,lastLabel="",stableCount=0,lastShown="";
+const confirmPanel=document.getElementById('confirmPanel');
+const pickPanel=document.getElementById('pickPanel');
+const brandSelect=document.getElementById('brandSelect');
+const brandSwatch=document.getElementById('brandSwatch');
+const brandBadge=document.getElementById('brandBadge');
+const detectedName=document.getElementById('detectedName');
+let model=null,stream=null,running=false,paused=false,raf=null,lastLabel="",stableCount=0,lastShown="",pendingBrand="";
 const THRESHOLD=0.85;
+const BRAND_COLORS={
+  "Fendt":"#0a6e32",
+  "SDF":"#2c2c2c",
+  "John Deere":"#367629",
+  "Massey Ferguson":"#b4141e",
+  "Valtra":"#1a1a1a",
+  "Case IH":"#b40a14",
+  "Claas":"#008237",
+  "New Holland":"#0050aa"
+};
+function catalogueBrands(){
+  return Object.keys(CATALOGUE).filter(function(k){return k!=="Autre - inconnu" && CATALOGUE[k] && CATALOGUE[k].url;});
+}
+function fillBrandSelect(){
+  brandSelect.innerHTML='<option value="">— Choisir une marque —</option>';
+  catalogueBrands().forEach(function(k){
+    const opt=document.createElement('option');
+    opt.value=k;opt.textContent=k;
+    brandSelect.appendChild(opt);
+  });
+}
+fillBrandSelect();
+function openFiche(className){
+  const item=CATALOGUE[className];
+  if(!item||!item.url){say("Aucune fiche n'est configurée pour cette marque.");return}
+  window.open(item.url,"_blank","noopener");
+}
+function askConfirmation(className){
+  paused=true;
+  if(raf){clearTimeout(raf);raf=null}
+  pendingBrand=className;
+  lastShown=className;
+  objectName.textContent=className;
+  detectedName.textContent=className;
+  const color=BRAND_COLORS[className]||"#176b4b";
+  brandSwatch.style.background=color;
+  brandBadge.style.borderLeftColor=color;
+  confirmPanel.hidden=false;
+  pickPanel.hidden=true;
+  brandSelect.value="";
+  document.body.classList.add("confirming");
+  say("Détection en pause. Confirme s'il s'agit du bon logo.");
+  confirmPanel.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function resumeScan(){
+  confirmPanel.hidden=true;
+  pickPanel.hidden=true;
+  pendingBrand="";
+  lastLabel="";stableCount=0;lastShown="";
+  objectName.textContent="Aucun objet identifié";
+  document.body.classList.remove("confirming");
+  paused=false;
+  if(stream){
+    running=true;
+    say("Scan relancé : présente un équipement devant l'objectif.");
+    loop();
+  }else{
+    running=false;
+    say("Appuie sur « Activer la caméra et reconnaître » pour relancer le scan.");
+  }
+}
+document.getElementById('btnYes').onclick=function(){
+  if(pendingBrand)openFiche(pendingBrand);
+};
+document.getElementById('btnNo').onclick=function(){
+  pickPanel.hidden=false;
+  if(pendingBrand)brandSelect.value=pendingBrand;
+  say("Choisis la bonne marque dans la liste, puis ouvre la fiche.");
+  pickPanel.scrollIntoView({behavior:"smooth",block:"nearest"});
+};
+document.getElementById('btnOpenChosen').onclick=function(){
+  const chosen=brandSelect.value;
+  if(!chosen){say("Choisis d'abord une marque dans la liste.");return}
+  openFiche(chosen);
+};
+document.getElementById('btnRescan').onclick=resumeScan;
 function say(t){statusBox.textContent=t}
 async function loadModel(){
   const url=modelInput.value.trim();
@@ -114,12 +221,15 @@ async function start(){
     stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
     video.srcObject=stream;await video.play();running=true;
     document.getElementById('start').disabled=true;document.getElementById('stop').disabled=false;
+    paused=false;lastLabel="";stableCount=0;lastShown="";pendingBrand="";
+    confirmPanel.hidden=true;pickPanel.hidden=true;
+    document.body.classList.remove("confirming");
     say("Caméra active : présente un équipement devant l'objectif.");
     loop();
   }catch(e){console.error(e);say("Accès caméra refusé ou indisponible. Autorise la caméra dans Chrome et vérifie que la page est ouverte en HTTPS.");}
 }
 async function loop(){
-  if(!running)return;
+  if(!running||paused)return;
   try{
     const predictions=await model.predict(video);
     predictions.sort((a,b)=>b.probability-a.probability);
@@ -129,31 +239,29 @@ async function loop(){
     if(best.className!=="Autre - inconnu" && best.probability>=THRESHOLD && CATALOGUE[best.className] && CATALOGUE[best.className].url){
       if(best.className===lastLabel)stableCount++;else{lastLabel=best.className;stableCount=1}
       if(stableCount>=3){
-        const item=CATALOGUE[best.className];
-        objectName.textContent=best.className;
-        openLink.href=item.url;openLink.hidden=false;
-        openLink.textContent="Ouvrir : "+(item.description||best.className);
-        say("Équipement reconnu. Vérifie le nom puis appuie sur le bouton pour ouvrir la ressource.");
-        lastShown=best.className;
+        askConfirmation(best.className);
+        return;
       }else say("Correspondance possible : confirmation en cours…");
     }else{
       lastLabel="";stableCount=0;
       if(best.className==="Autre - inconnu" || best.probability<THRESHOLD){
-        objectName.textContent="Objet non confirmé";openLink.hidden=true;
+        objectName.textContent="Objet non confirmé";
         say("Je ne reconnais pas encore cet équipement avec suffisamment de confiance.");
       }else{
-        objectName.textContent=best.className;openLink.hidden=true;
+        objectName.textContent=best.className;
         say("Classe reconnue, mais aucun lien n'est configuré pour cet objet.");
       }
     }
   }catch(e){console.error(e);say("Erreur pendant la reconnaissance.");}
-  if(running)raf=setTimeout(loop,450);
+  if(running&&!paused)raf=setTimeout(loop,450);
 }
 function stop(){
-  running=false;if(raf)clearTimeout(raf);
+  running=false;paused=false;if(raf)clearTimeout(raf);
   if(stream)stream.getTracks().forEach(t=>t.stop());
   stream=null;video.srcObject=null;
   document.getElementById('start').disabled=false;document.getElementById('stop').disabled=true;
+  confirmPanel.hidden=true;pickPanel.hidden=true;
+  document.body.classList.remove("confirming");
   say("Caméra arrêtée.");
 }
 document.getElementById('start').onclick=start;
